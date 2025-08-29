@@ -1,10 +1,9 @@
 import Project from "../models/Projects.Model.js";
 import express from "express";
-import auth from "../middlewares/auth.middlewares.js";
 
 const router = express.Router();
 
-router.post("/projects", auth, async (req, res) => {
+router.post("/projects", async (req, res) => {
   try {
     const { name, location, price } = req.body;
     if (!name || !location || !price) {
