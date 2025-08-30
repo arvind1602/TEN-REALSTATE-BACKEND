@@ -10,8 +10,14 @@ app.use(cookieParser());
 
 //import router
 import UserRouter from "./routes/User.Router.js";
+import ContactUsRouter from "./routes/Contact.Router.js";
+import projectRouter from "./routes/Projects.Router.js";
+import testimonialRouter from "./routes/Testimonial.Router.js";
 
 //define router
 app.use("/api/users", UserRouter);
+app.use("/api", ContactUsRouter);
+app.use("/api/projects", projectRouter);
+app.use("/api/testimonials", testimonialRouter);
 
 export default app;
