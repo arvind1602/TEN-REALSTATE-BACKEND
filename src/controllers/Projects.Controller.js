@@ -15,13 +15,13 @@ export const getAllProjects = async (req, res) => {
 // Add a new project
 export const addProject = async (req, res) => {
   try {
-    const { name, location, price } = req.body;
+    const { name, location, price, description } = req.body;
 
-    if (!name || !location || price == null) {
+    if (!name || !location || !price || !description == null) {
       return res.status(400).json({ msg: "All fields are required" });
     }
 
-    const newProject = new Project({ name, location, price });
+    const newProject = new Project({ name, location, price, description });
     await newProject.save();
 
     res.status(201).json({

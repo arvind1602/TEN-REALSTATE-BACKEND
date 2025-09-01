@@ -5,7 +5,6 @@ export const createTestimonial = async (req, res) => {
   try {
     const { name, designation, rating, message } = req.body;
     const portrait = req.file ? req.file.path : null;
-
     const newTestimonial = new Testimonial({
       name,
       designation,
