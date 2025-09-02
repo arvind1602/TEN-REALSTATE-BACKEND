@@ -4,7 +4,9 @@ import sendEmail from "../utils/sendEmail.js";
 import ApiError from "../utils/ApiError.js";
 import ApiResponse from "../utils/ApiResponse.js";
 
-//  Generate Access + Refresh Tokens
+/* ============================================================
+   Generate Access + Refresh Tokens
+============================================================ */
 const generateToken = async (user) => {
   const accessToken = jwt.sign(
     { id: user._id },
@@ -24,7 +26,9 @@ const generateToken = async (user) => {
   return { accessToken, refreshToken };
 };
 
-// 🔹 Register New User
+/* ============================================================
+   Register New User
+============================================================ */
 const CreateUser = async (req, res) => {
   try {
     const { username, email, fullname, password } = req.body;
@@ -50,7 +54,7 @@ const CreateUser = async (req, res) => {
       { expiresIn: process.env.EMAIL_VERIFY_EXPIRES_IN || "10m" }
     );
 
-    const verifyUrl = `http://localhost:${process.env.PORT || 8000}/api/users/verify-email/${encodeURIComponent(token)}`;
+    const verifyUrl = `${process.env.CLIENT_URL}/verify-email/${encodeURIComponent(token)}`;
 
     const html = `
       <p>Hello ${newUser.username || newUser.fullname},</p>
@@ -88,7 +92,9 @@ const CreateUser = async (req, res) => {
   }
 };
 
-// Verify Email
+/* ============================================================
+   Verify Email
+============================================================ */
 const verifyEmail = async (req, res) => {
   try {
     const { token } = req.params;
@@ -119,14 +125,14 @@ const verifyEmail = async (req, res) => {
   }
 };
 
-// 🔹 Login User
+/* ============================================================
+   Login User
+============================================================ */
 const loginUser = async (req, res) => {
   try {
     const { username, password } = req.body;
     if (!username || !password)
-      return res
-        .status(400)
-        .json(new ApiResponse(null, "All fields are required", 400));
+      throw new ApiError("All fields are required", 400);
 
     const user = await User.findOne({ username });
     if (!user) throw new ApiError("User not found", 404);
@@ -162,7 +168,9 @@ const loginUser = async (req, res) => {
   }
 };
 
-// 🔹 Forgot Password
+/* ============================================================
+   Forgot Password
+============================================================ */
 const forgotPassword = async (req, res) => {
   try {
     const { email } = req.body;
@@ -181,7 +189,7 @@ const forgotPassword = async (req, res) => {
       { expiresIn: process.env.RESET_PASSWORD_EXPIRES_IN || "15m" }
     );
 
-    const resetPasswordUrl = `http://localhost:${process.env.PORT || 8000}/api/users/reset-password/${encodeURIComponent(token)}`;
+    const resetPasswordUrl = `${process.env.CLIENT_URL}/reset-password/${encodeURIComponent(token)}`;
 
     const html = `
       <p>Hello ${user.username || user.fullname},</p>
@@ -199,7 +207,9 @@ const forgotPassword = async (req, res) => {
   }
 };
 
-// 🔹 Reset Password
+/* ============================================================
+   Reset Password
+============================================================ */
 const resetPasswordWithToken = async (req, res) => {
   try {
     const { token } = req.params;
@@ -232,36 +242,151 @@ const resetPasswordWithToken = async (req, res) => {
       message: err.message || "Failed to reset password",
     });
   }
-  // };
+};
 
-  // const verifyLogin = async (req, res) => {
-  //   try {
-  //     const { token } = req.params;
+/* ============================================================
+   Logout User
+============================================================ */
+const logoutUser = async (req, res) => {
+  try {
+    const user = await User.findById(req.user._id);
+    if (!user) throw new ApiError("User not found", 400);
 
-  //     const decoded = jwt.verify(token, process.env.ACCESS_TOKEN_SECRET);
-  //     const user = await User.findById(decoded.id);
+    user.refresh_token = null;
+    await user.save();
 
-  //     if (!user) throw new ApiError("User not found", 404);
+    res
+      .clearCookie("refreshToken")
+      .clearCookie("accessToken")
+      .status(200)
+      .json(new ApiResponse(null, "Logout successful", 200));
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "An error occurred while logging out",
+    });
+  }
+};
 
-  //     const { accessToken, refreshToken } = await generateToken(user);
+/* ============================================================
+   Refresh Access Token
+============================================================ */
+const refreshAccessToken = async (req, res) => {
+  try {
+    const refreshToken =
+      req.cookies.refreshToken || req.headers.authorization?.split(" ")[1];
+    if (!refreshToken) throw new ApiError("Refresh token is required", 401);
 
-  //     const cookieOptions = {
-  //       httpOnly: true,
-  //       secure: process.env.NODE_ENV === "production",
-  //       sameSite: "strict",
-  //       maxAge: 7 * 24 * 60 * 60 * 1000,
-  //     };
+    const decoded = jwt.verify(refreshToken, process.env.REFRESH_TOKEN_SECRET);
+    const user = await User.findById(decoded.id);
+    if (!user) throw new ApiError("User not found", 404);
 
-  //     res
-  //       .cookie("accessToken", accessToken, cookieOptions)
-  //       .cookie("refreshToken", refreshToken, cookieOptions)
-  //       .status(200)
-  //       .json(new ApiResponse(null, "Login verified successfully", 200));
-  //   } catch (error) {
-  //     return res.status(error.statusCode || 500).json({
-  //       message: error.message || "Invalid or expired login token",
-  //     });
-  //   }
+    if (user.refresh_token !== refreshToken)
+      throw new ApiError("Invalid refresh token", 403);
+
+    const { accessToken, refreshToken: newRefreshToken } =
+      await generateToken(user);
+
+    const options = {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 7 * 24 * 60 * 60 * 1000,
+    };
+
+    res
+      .cookie("refreshToken", newRefreshToken, options)
+      .cookie("accessToken", accessToken, options)
+      .status(200)
+      .json(new ApiResponse(null, "Access token refreshed successfully", 200));
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message:
+        error.message || "An error occurred while refreshing access token",
+    });
+  }
+};
+
+/* ============================================================
+   Verify Logged-in User
+============================================================ */
+const verifyUser = async (req, res) => {
+  try {
+    const user = req.user; // Already added by auth middleware
+    if (!user || !user._id)
+      throw new ApiError("Access token not verified", 401);
+
+    res.status(200).json(new ApiResponse(user, "Success", 200));
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Verification failed",
+    });
+  }
+};
+
+/* ============================================================
+   Update Username
+============================================================ */
+const updateUsername = async (req, res) => {
+  try {
+    const user = req.user;
+    if (!req.body.username) throw new ApiError("Username is required", 400);
+
+    user.username = req.body.username;
+    await user.save();
+
+    res
+      .status(200)
+      .json(new ApiResponse(null, "Username updated successfully", 200));
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Failed to update username",
+    });
+  }
+};
+
+/* ============================================================
+   Change Password
+============================================================ */
+const changePassword = async (req, res) => {
+  try {
+    const user = req.user;
+    const { oldPassword, newPassword } = req.body;
+
+    if (!oldPassword || !newPassword)
+      throw new ApiError("Old and new passwords are required", 400);
+
+    const isMatch = await user.isPasswordValid(oldPassword);
+    if (!isMatch) throw new ApiError("Old password is incorrect", 401);
+
+    user.password = newPassword;
+    user.refresh_token = null;
+    await user.save();
+
+    res
+      .status(200)
+      .json(new ApiResponse(null, "✅ Password changed successfully", 200));
+  } catch (error) {
+    res
+      .status(error.statusCode || 500)
+      .json({ message: error.message || "❌ Failed to change password" });
+  }
+};
+
+/* ============================================================
+   Delete Account
+============================================================ */
+const deleteAccount = async (req, res) => {
+  try {
+    await User.findByIdAndDelete(req.user._id);
+    res.clearCookie("accessToken").clearCookie("refreshToken");
+    res
+      .status(200)
+      .json(new ApiResponse(null, "Account deleted successfully", 200));
+  } catch (error) {
+    res.status(error.statusCode || 500).json({
+      message: error.message || "Failed to delete account",
+    });
+  }
 };
 
 export {
@@ -270,5 +395,10 @@ export {
   loginUser,
   forgotPassword,
   resetPasswordWithToken,
-  // verifyLogin,
+  logoutUser,
+  refreshAccessToken,
+  verifyUser,
+  updateUsername,
+  changePassword,
+  deleteAccount,
 };
