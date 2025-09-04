@@ -54,7 +54,9 @@ const CreateUser = async (req, res) => {
       { expiresIn: process.env.EMAIL_VERIFY_EXPIRES_IN || "10m" }
     );
 
-    const verifyUrl = `${process.env.CLIENT_URL}/verify-email/${encodeURIComponent(token)}`;
+    const verifyUrl = `${process.env.BACKEND_URL}/api/users/verify-email/${encodeURIComponent(
+      token
+    )}`;
 
     const html = `
       <p>Hello ${newUser.username || newUser.fullname},</p>
@@ -189,7 +191,9 @@ const forgotPassword = async (req, res) => {
       { expiresIn: process.env.RESET_PASSWORD_EXPIRES_IN || "15m" }
     );
 
-    const resetPasswordUrl = `${process.env.CLIENT_URL}/reset-password/${encodeURIComponent(token)}`;
+    const resetPasswordUrl = `${process.env.BACKEND_URL}/api/users/reset-password/${encodeURIComponent(
+      token
+    )}`;
 
     const html = `
       <p>Hello ${user.username || user.fullname},</p>
@@ -364,11 +368,11 @@ const changePassword = async (req, res) => {
 
     res
       .status(200)
-      .json(new ApiResponse(null, "✅ Password changed successfully", 200));
+      .json(new ApiResponse(null, "Password changed successfully", 200));
   } catch (error) {
     res
       .status(error.statusCode || 500)
-      .json({ message: error.message || "❌ Failed to change password" });
+      .json({ message: error.message || " Failed to change password" });
   }
 };
 

@@ -4,7 +4,7 @@ import connectDB from "./db/db.controllers.js";
 import app from "./app.js";
 
 console.log("EMAIL:", process.env.EMAIL);
-console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? "✅ loaded" : "❌ missing");
+console.log("EMAIL_PASS:", process.env.EMAIL_PASS ? " loaded" : " missing");
 
 connectDB()
   .then(() => {

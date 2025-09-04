@@ -2,6 +2,7 @@ import express from "express";
 import {
   CreateUser,
   loginUser,
+  logoutUser,
   forgotPassword,
   resetPasswordWithToken,
   verifyEmail,
@@ -10,8 +11,8 @@ import {
   updateUsername,
   changePassword,
   deleteAccount,
-  // verifyLogin,
 } from "../controllers/User.Controller.js";
+import verifyToken from "../middlewares/auth.middlewares.js";
 
 const router = express.Router();
 
@@ -19,15 +20,15 @@ router.post("/create", CreateUser);
 router.get("/verify-email/:token", verifyEmail);
 
 router.post("/login", loginUser);
-// router.get("/verify-login/:token", verifyLogin);
 
 router.post("/forgot-password", forgotPassword);
 router.post("/reset-password/:token", resetPasswordWithToken);
-router.route("/verify").post(verifyToken, verifyUser);
-router.route("/logout").post(verifyToken, logoutUser);
-router.route("/refresh-token").post(refreshAccessToken);
+router.get("/verify", verifyToken, verifyUser);
+router.post("/logout", verifyToken, logoutUser);
+router.post("/refresh-token", refreshAccessToken);
 
-router.put("/update-username/", verifyToken, updateUsername);
+router.put("/update-username", verifyToken, updateUsername);
 router.put("/change-password", verifyToken, changePassword);
 router.delete("/delete-account", verifyToken, deleteAccount);
+
 export default router;
